@@ -1,0 +1,54 @@
+version: '3.9'
+
+services:
+  bus_ticket_api:
+    build: .
+    container_name: bus_ticket_api
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    depends_on:
+      bus_ticket_postgres:
+        condition: service_healthy
+      bus_ticket_redis:
+        condition: service_started
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@bus_ticket_postgres:5432/bus_ticket_db
+      - REDIS_URL=redis://bus_ticket_redis:6379/0
+  bus_ticket_postgres:
+    image: postgres:16-alpine
+    container_name: bus_ticket_postgres
+    environment:
+      POSTGRES_DB: bus_ticket_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  bus_ticket_redis:
+    image: redis:7-alpine
+    container_name: bus_ticket_redis
+    ports:
+      - "6379:6379"
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: bus_ticket_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: 123456
+    ports:
+      - "5050:80"
+    depends_on:
+      - bus_ticket_postgres
+
+volumes:
+  postgres_data:
