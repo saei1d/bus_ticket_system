@@ -1,29 +1,51 @@
-# app/api/v1/endpoints/booking.py
+
 from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException, status
+from datetime import datetime, timezone
+
 from app.schemas.booking import ReserveRequest
 from app.services.booking_service import reserve_seat
+from app.services.booking_queries import (
+    GET_USER_BOOKINGS,
+    GET_BOOKING_FOR_CANCELLATION,
+    REFUND_TO_WALLET,
+    MARK_BOOKING_CANCELLED,
+    RELEASE_SEAT
+)
 from app.core.dependencies import get_current_user
 from app.db.session import AsyncSessionLocal
 from app.models.user import User
-from sqlalchemy import text
-from datetime import datetime, timezone
+
 
 router = APIRouter(prefix="/booking", tags=["Booking"])
 
 
-# ۱. رزرو صندلی (کاملاً امن با Redis Lock + Rate Limit)
+# Background task to refund money and cancel booking
+async def refund_money(booking_id: int, amount: int, user_id: int):
+    """Background task to process refund and cancellation."""
+    async with AsyncSessionLocal() as db:
+        async with db.begin():
+            await db.execute(REFUND_TO_WALLET, {"amount": amount, "uid": user_id})
+            await db.execute(MARK_BOOKING_CANCELLED, {"bid": booking_id})
+            await db.execute(RELEASE_SEAT, {"bid": booking_id})
+
+
 @router.post("/reserve", status_code=status.HTTP_201_CREATED)
 async def reserve(
     request: ReserveRequest,
     current_user: User = Depends(get_current_user)
 ):
+    """
+    Reserve a seat for a trip.
+    Includes Redis lock for concurrency safety and daily rate limiting (20 bookings/day).
+    """
     result = await reserve_seat(
         user_id=current_user.id,
         trip_id=request.trip_id,
         seat_number=request.seat_number
     )
+
     return {
-        "message": "بلیط با موفقیت رزرو شد",
+        "message": "Ticket successfully reserved",
         "booking_id": result["booking_id"],
         "trip_id": request.trip_id,
         "seat_number": request.seat_number,
@@ -31,106 +53,85 @@ async def reserve(
     }
 
 
-# ۲. تابع پس‌زمینه برای بازگشت پول (BackgroundTasks — دقیقاً خواسته سعید شجاعی)
-async def refund_money(booking_id: int, amount: int, user_id: int):
-    async with AsyncSessionLocal() as db:
-        async with db.begin():
-            # بازگشت پول به کیف پول
-            await db.execute(
-                text("UPDATE wallets SET balance = balance + :amount WHERE user_id = :uid"),
-                {"amount": amount, "uid": user_id}
-            )
-            # لغو بلیط
-            await db.execute(
-                text("UPDATE bookings SET status = 'cancelled' WHERE id = :bid"),
-                {"bid": booking_id}
-            )
-            # آزاد کردن صندلی
-            await db.execute(
-                text("UPDATE seats SET is_reserved = false WHERE id = (SELECT seat_id FROM bookings WHERE id = :bid)"),
-                {"bid": booking_id}
-            )
-
-
-# ۳. لیست تمام رزروهای کاربر (حالا ۱۰۰٪ کار می‌کنه!)
 @router.get("/my-bookings")
 async def my_bookings(current_user: User = Depends(get_current_user)):
+    """
+    Get current user's booking history.
+    Returns all confirmed and cancelled bookings.
+    """
     async with AsyncSessionLocal() as db:
-        query = text("""
-            SELECT 
-                b.id,
-                r.origin,
-                r.destination,
-                t.departure_time,
-                s.seat_number,
-                b.price_paid,
-                b.status,
-                t.departure_time > NOW() AT TIME ZONE 'UTC' AS can_cancel
-            FROM bookings b
-            JOIN seats s ON b.seat_id = s.id
-            JOIN trips t ON s.trip_id = t.id
-            JOIN routes r ON t.route_id = r.id
-            WHERE b.user_id = :user_id
-              AND (b.status IN ('confirmed', 'cancelled') OR b.status IS NULL)
-            ORDER BY b.booking_date DESC
-        """)
-
-        result = await db.execute(query, {"user_id": current_user.id})
+        result = await db.execute(GET_USER_BOOKINGS, {"user_id": current_user.id})
         rows = result.fetchall()
 
-        bookings = []
-        for row in rows:
-            bookings.append({
+        bookings = [
+            {
                 "id": row[0],
                 "origin": row[1],
                 "destination": row[2],
                 "departure_time": row[3].isoformat() if row[3] else None,
                 "seat_number": row[4],
                 "price_paid": row[5],
-                "status": row[6],
+                "status": row[6] or "pending",
                 "can_cancel": bool(row[7])
-            })
+            }
+            for row in rows
+        ]
 
-        return {"bookings": bookings, "total": len(bookings)}
+        return {
+            "bookings": bookings,
+            "total": len(bookings)
+        }
 
 
-# ۴. لغو بلیط با پیام محترمانه (فقط قبل از حرکت!)
 @router.post("/cancel/{booking_id}")
 async def cancel_booking(
     booking_id: int,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user)
 ):
+    """
+    Cancel a booking.
+    Only allowed before departure time. Refund is processed in background.
+    """
     async with AsyncSessionLocal() as db:
         async with db.begin():
-            # چک کردن مالکیت + وضعیت + زمان حرکت
-            result = await db.execute(text("""
-                SELECT b.price_paid, t.departure_time, b.status
-                FROM bookings b
-                JOIN seats s ON b.seat_id = s.id
-                JOIN trips t ON s.trip_id = t.id
-                WHERE b.id = :bid AND b.user_id = :uid
-            """), {"bid": booking_id, "uid": current_user.id})
+            result = await db.execute(
+                GET_BOOKING_FOR_CANCELLATION,
+                {"bid": booking_id, "uid": current_user.id}
+            )
 
             row = result.fetchone()
             if not row:
-                raise HTTPException(status_code=404, detail="بلیط یافت نشد یا متعلق به شما نیست.")
+                raise HTTPException(
+                    status_code=404,
+                    detail="Booking not found or does not belong to you."
+                )
 
-            price_paid, departure_time, current_status = row
+            price_paid, departure_time, current_status, booking_user_id = row
+            
+            # Additional security check: verify booking belongs to current user
+            if booking_user_id != current_user.id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="You do not have permission to cancel this booking."
+                )
 
             if current_status == 'cancelled':
-                raise HTTPException(status_code=400, detail="این بلیط قبلاً لغو شده است.")
+                raise HTTPException(
+                    status_code=400,
+                    detail="This booking has already been cancelled."
+                )
 
             if departure_time <= datetime.now(timezone.utc):
                 raise HTTPException(
                     status_code=400,
-                    detail="با عرض پوزش، امکان لغو بلیط وجود ندارد زیرا اتوبوس حرکت کرده است. امیدواریم سفر خوبی داشته باشید."
+                    detail="Sorry, cancellation is not allowed after the bus has departed. We wish you a safe trip."
                 )
 
-            # ثبت درخواست لغو در پس‌زمینه
+            # Schedule refund and cleanup in background
             background_tasks.add_task(refund_money, booking_id, price_paid, current_user.id)
 
             return {
-                "message": "درخواست لغو بلیط با موفقیت ثبت شد. مبلغ طی چند ثانیه به کیف پول شما بازگردانده خواهد شد.",
+                "message": "Cancellation request received. The amount will be refunded to your wallet shortly.",
                 "booking_id": booking_id
             }

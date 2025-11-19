@@ -2,15 +2,17 @@
 from fastapi import HTTPException
 from sqlalchemy import text
 from app.db.session import AsyncSessionLocal
-from app.services.rate_limit import check_daily_limit
+from app.services.rate_limit import check_daily_limit, increment_daily_limit
 from app.services.seat_lock import acquire_seat_lock, release_seat_lock
 from datetime import date
 
 async def reserve_seat(user_id: int, trip_id: int, seat_number: int):
     # ------------------------------------------------------
-    # 1) چک محدودیت روزانه (Redis)
+    # 1) چک محدودیت روزانه (Redis) - فقط چک می‌کند، increment نمی‌کند
     # ------------------------------------------------------
     await check_daily_limit(user_id)
+    
+    # ------------------------------------------------------
     # 2) قفل‌گذاری صندلی (Redis)
     # ------------------------------------------------------
     lock_key, lock_value = await acquire_seat_lock(trip_id, seat_number)
@@ -102,7 +104,12 @@ async def reserve_seat(user_id: int, trip_id: int, seat_number: int):
                 booking_id = booking_result.scalar_one()
 
         # ------------------------------------------------------
-        # 9) خروجی موفق
+        # 9) Increment daily limit counter - فقط بعد از موفقیت کامل
+        # ------------------------------------------------------
+        await increment_daily_limit(user_id)
+
+        # ------------------------------------------------------
+        # 10) خروجی موفق
         # ------------------------------------------------------
         return {
             "message": "رزرو با موفقیت انجام شد",

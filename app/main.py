@@ -1,26 +1,41 @@
 # app/main.py
 from fastapi import FastAPI
+
 from app.db.base import Base
 from app.db.session import engine
 from app.api.v1.router import router as v1_router
 from app.models import *
 
+
 app = FastAPI(
-    title="Bus Ticket System - Saeid Shojaei Task",
+    title="Bus Ticket System API",
     version="1.0.0",
-    description="پروژه حرفه‌ای با Clean Architecture + Concurrency Safe"
+    description="bus ticketing platform.",
+    contact={
+        "name": "Me",
+    },
+    license_info={
+        "name": "MIT",
+    },
 )
+
 
 @app.on_event("startup")
 async def startup_event():
-    # استفاده از Alembic برای migration‌ها
-    # برای ساخت دستی جدول‌ها، از دستور زیر استفاده کنید:
-    # async with engine.begin() as conn:
-    #     await conn.run_sync(Base.metadata.create_all)
-    print("API آماده است! برای migration از Alembic استفاده کنید.")
+    print("Bus Ticket System API started and ready to accept requests.")
+    print("Use Alembic for database migrations if schema changes are needed.")
 
+
+# Include all v1 API routes
 app.include_router(v1_router)
 
-@app.get("/")
+
+@app.get("/", tags=["Root"])
 async def root():
-    return {"message": "Bus Ticket System API - آماده برای رزرو بلیت!"}
+    return {
+        "message": "Welcome to the Bus Ticket System API",
+        "status": "running",
+        "docs_url": "/docs",
+        "redoc_url": "/redoc",
+        "version": "1.0.0"
+    }

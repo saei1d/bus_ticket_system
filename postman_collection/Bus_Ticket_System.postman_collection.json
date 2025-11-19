@@ -73,7 +73,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"mobile\": \"09123456789\",\n    \"password\": \"123456\",\n    \"role\": \"passenger\"\n}"
+							"raw": "{\n    \"mobile\": \"09123456789\"}"
 						},
 						"url": {
 							"raw": "{{base_url}}/v1/auth/register",
@@ -110,7 +110,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"mobile\": \"09990000001\",\n    \"password\": \"123456\"\n}"
+							"raw": "{\n    \"mobile\": \"09990000001\"}"
 						},
 						"url": {
 							"raw": "{{base_url}}/v1/auth/login",
@@ -363,7 +363,7 @@
 			"name": "Reports",
 			"item": [
 				{
-					"name": "Hourly Success Bookings",
+					"name": "Hourly Success Bookings (All)",
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -371,6 +371,49 @@
 							"raw": "{{base_url}}/v1/admin/reports/hourly-success-bookings",
 							"host": ["{{base_url}}"],
 							"path": ["v1", "admin", "reports", "hourly-success-bookings"]
+						}
+					}
+				},
+				{
+					"name": "Hourly Success Bookings (By Date)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/admin/reports/hourly-success-bookings?date=2025-12-14",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "admin", "reports", "hourly-success-bookings"],
+							"query": [
+								{
+									"key": "date",
+									"value": "2025-12-14",
+									"description": "Date in YYYY-MM-DD format"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Hourly Success Bookings (By Date and Hour)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/v1/admin/reports/hourly-success-bookings?date=2025-12-14&hour=14",
+							"host": ["{{base_url}}"],
+							"path": ["v1", "admin", "reports", "hourly-success-bookings"],
+							"query": [
+								{
+									"key": "date",
+									"value": "2025-12-14",
+									"description": "Date in YYYY-MM-DD format"
+								},
+								{
+									"key": "hour",
+									"value": "14",
+									"description": "Hour (0-23)"
+								}
+							]
 						}
 					}
 				},

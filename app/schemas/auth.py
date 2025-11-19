@@ -8,7 +8,7 @@ class RegisterRequest(BaseModel):
 
 class LoginRequest(BaseModel):
     mobile: str = Field(..., pattern=r"^09\d{9}$")
-    password: str = "123456"  # برای تست راحت
+    password: str = "123456"
 
 class TokenResponse(BaseModel):
     access_token: str

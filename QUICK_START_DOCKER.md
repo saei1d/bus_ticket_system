@@ -146,6 +146,14 @@ docker exec -it bus_ticket_api alembic upgrade head
 
 # 5. اجرای seeder
 docker exec -it bus_ticket_api python seeders/complete_seeder.py
+
+
+docker exec -it bus_ticket_api python -c "
+import asyncio, sys
+sys.path.append('/app')
+from seeders.heavy_booking_seeder import create_100k_bookings
+asyncio.run(create_100k_bookings())
+"
 ```
 
 ---
