@@ -1,5 +1,6 @@
 # app/core/security.py
 from datetime import datetime, timedelta
+from re import DEBUG
 from jose import jwt
 from passlib.context import CryptContext
 from app.core.config import settings
@@ -10,6 +11,8 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 ACCESS_TOKEN_EXPIRE_HOURS = 8 
 
+DEBUG = True
+
 def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
@@ -18,14 +21,17 @@ def create_access_token(data: dict):
     return encoded_jwt
 
 def get_password_hash(password: str) -> str:
-    if password == "123456":
-        return FIXED_HASH_FOR_123456
-    return pwd_context.hash(password)
+    if DEBUG:
+        if password == "123456":
+            return FIXED_HASH_FOR_123456
+        return pwd_context.hash(password)
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    if plain_password == "123456" and hashed_password == FIXED_HASH_FOR_123456:
-        return True
-    try:
-        return pwd_context.verify(plain_password, hashed_password)
-    except:
-        return False
+    if DEBUG:
+        if plain_password == "123456" and hashed_password == FIXED_HASH_FOR_123456:
+            return True
+        try:
+            return pwd_context.verify(plain_password, hashed_password)
+        except:
+            return False

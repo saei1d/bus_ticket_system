@@ -49,7 +49,7 @@ async def reserve(
         "booking_id": result["booking_id"],
         "trip_id": request.trip_id,
         "seat_number": request.seat_number,
-        "price_paid": result["price"]
+        "price_paid": result["price_paid"]
     }
 
 

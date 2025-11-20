@@ -1,7 +1,7 @@
 # app/services/booking_service.py
 from fastapi import HTTPException, status
 from sqlalchemy import text
-from datetime import date
+from datetime import date, datetime, timezone
 
 from app.db.session import AsyncSessionLocal
 from app.services.rate_limit import check_daily_limit, increment_daily_limit
@@ -29,7 +29,7 @@ async def reserve_seat(user_id: int, trip_id: int, seat_number: int) -> dict:
             async with db.begin():
                 # 3. Fetch seat status and trip price (with row lock)
                 seat_result = await db.execute(text("""
-                    SELECT s.id AS seat_id, s.is_reserved, t.price
+                    SELECT s.id AS seat_id, s.is_reserved, t.price, t.departure_time
                     FROM seats s
                     JOIN trips t ON t.id = s.trip_id
                     WHERE s.trip_id = :trip_id AND s.seat_number = :seat_number
@@ -45,6 +45,7 @@ async def reserve_seat(user_id: int, trip_id: int, seat_number: int) -> dict:
                         FROM seats
                         WHERE trip_id = :trip_id AND is_reserved = false
                         ORDER BY seat_number
+                        LIMIT 20
                     """), {"trip_id": trip_id})
 
                     available_seats = [row.seat_number for row in available_result.fetchall()]
@@ -60,6 +61,13 @@ async def reserve_seat(user_id: int, trip_id: int, seat_number: int) -> dict:
 
                 seat_id = seat_row.seat_id
                 price = seat_row.price
+                departure_time = seat_row.departure_time
+
+                if departure_time <= datetime.now(timezone.utc):
+                    raise HTTPException(
+                        status_code=400,
+                        detail="This trip has already departed. Booking is no longer available."
+                    )
 
                 # 5. Check wallet balance (with lock)
                 wallet_result = await db.execute(text("""

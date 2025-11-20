@@ -86,6 +86,15 @@ docker exec -it bus_ticket_postgres psql -U postgres -d bus_ticket_db -c "SELECT
   - Default password  is 123456
   - Rate limit: 10 requests/minute per IP and phone
 
+### Reports
+
+- **GET** `/v1/admin/reports/hourly-success-bookings`
+  - **No query parameters**: Returns successful bookings for the **current 60-minute window** (ongoing hour today).
+  - **`?date=YYYY-MM-DD`**: Returns all 24 hours of the specified date with the number of successful bookings per hour.
+  - **`?date=YYYY-MM-DD&hour=HH`**: Returns data only for the specified hour (from HH:00 to HH:59) on the given date.
+  - **Requirement**: When the `hour` parameter is provided, the `date` parameter is **mandatory**.
+  - **Time zone**: All times are in **UTC**.
+  - **Authentication**: Admin access required.
 
 ## Database Migrations
 
@@ -124,6 +133,10 @@ After running the seeder, you can login with:
 - **Password**: `123456`
 - **Role**: `admin`
 
+## Test 
+```bash
+docker exec -it bus_ticket_api bash -c "export TEST_USER_TOKEN='TOKEN' TEST_TRIP_ID=1 TEST_SEAT_NUMBER=10 && pytest test/test_concurrent.py"
+```
 ## Security Features
 
 - ✅ JWT Authentication with 8-hour token expiry
@@ -173,12 +186,33 @@ docker-compose up -d --build
 docker exec -it bus_ticket_postgres psql -U postgres -d bus_ticket_db
 ```
 
+### Connect via pgAdmin
+1. Open `http://localhost:5050/browser/`.
+2. Sign in with `admin@admin.com / 123456` (configured in `docker-compose.yml`).
+3. Create a new server connection:
+   - **Host name / address**: `bus_ticket_postgres`
+   - **Port**: `5432`
+   - **Maintenance DB**: `bus_ticket_db`
+   - **Username**: `postgres`
+   - **Password**: `postgres`
+4. Save the connection and browse the schema/data from pgAdmin.
+
 ## Testing
 
 For concurrent testing:
 
+1. Export a valid JWT token and target trip/seat (Admin can fetch from DB/Postman):
+
 ```bash
-python test/test_concurrent.py
+export TEST_USER_TOKEN="YOUR_JWT_TOKEN"
+export TEST_TRIP_ID=1
+export TEST_SEAT_NUMBER=10
+```
+
+2. Run the async pytest to ensure Redis seat locks allow only one success per seat (replace env values with real ones):
+
+```bash
+docker exec -it bus_ticket_api bash -c "export TEST_USER_TOKEN='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTM2MjY4MDI1NCIsImV4cCI6MTc2MzY1OTY0M30.5SKyZUl4ROTt9DxTLIHaieiBpZ1_y491oMvqneYgve0' TEST_TRIP_ID=2273 TEST_SEAT_NUMBER=26 && pytest test/test_concurrent.py"
 ```
 
 ## Documentation

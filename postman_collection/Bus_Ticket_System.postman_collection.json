@@ -133,9 +133,21 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/v1/trips/available",
+							"raw": "{{base_url}}/v1/trips/available?page=1&per_page=20",
 							"host": ["{{base_url}}"],
-							"path": ["v1", "trips", "available"]
+							"path": ["v1", "trips", "available"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number"
+								},
+								{
+									"key": "per_page",
+									"value": "20",
+									"description": "Items per page (max 100)"
+								}
+							]
 						}
 					}
 				},
@@ -148,13 +160,21 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/v1/trips/available?origin=Tehran",
+							"raw": "{{base_url}}/v1/trips/available?origin=Tehran&page=1&per_page=20",
 							"host": ["{{base_url}}"],
 							"path": ["v1", "trips", "available"],
 							"query": [
 								{
 									"key": "origin",
 									"value": "Tehran"
+								},
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "per_page",
+									"value": "20"
 								}
 							]
 						}
@@ -169,7 +189,7 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/v1/trips/available?origin=Tehran&destination=Mashhad",
+							"raw": "{{base_url}}/v1/trips/available?origin=Tehran&destination=Mashhad&page=1&per_page=20",
 							"host": ["{{base_url}}"],
 							"path": ["v1", "trips", "available"],
 							"query": [
@@ -180,6 +200,14 @@
 								{
 									"key": "destination",
 									"value": "Mashhad"
+								},
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "per_page",
+									"value": "20"
 								}
 							]
 						}
@@ -194,13 +222,21 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/v1/trips/available?sort=expensive",
+							"raw": "{{base_url}}/v1/trips/available?sort=expensive&page=1&per_page=20",
 							"host": ["{{base_url}}"],
 							"path": ["v1", "trips", "available"],
 							"query": [
 								{
 									"key": "sort",
 									"value": "expensive"
+								},
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "per_page",
+									"value": "20"
 								}
 							]
 						}
@@ -215,13 +251,21 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/v1/trips/available?sort=cheapest",
+							"raw": "{{base_url}}/v1/trips/available?sort=cheapest&page=1&per_page=20",
 							"host": ["{{base_url}}"],
 							"path": ["v1", "trips", "available"],
 							"query": [
 								{
 									"key": "sort",
 									"value": "cheapest"
+								},
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "per_page",
+									"value": "20"
 								}
 							]
 						}
@@ -363,38 +407,7 @@
 			"name": "Reports",
 			"item": [
 				{
-					"name": "Hourly Success Bookings (All)",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/v1/admin/reports/hourly-success-bookings",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "admin", "reports", "hourly-success-bookings"]
-						}
-					}
-				},
-				{
-					"name": "Hourly Success Bookings (By Date)",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/v1/admin/reports/hourly-success-bookings?date=2025-12-14",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "admin", "reports", "hourly-success-bookings"],
-							"query": [
-								{
-									"key": "date",
-									"value": "2025-12-14",
-									"description": "Date in YYYY-MM-DD format"
-								}
-							]
-						}
-					}
-				},
-				{
-					"name": "Hourly Success Bookings (By Date and Hour)",
+					"name": "Hourly Success Bookings",
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -411,7 +424,7 @@
 								{
 									"key": "hour",
 									"value": "14",
-									"description": "Hour (0-23)"
+									"description": "Hour (0-23) to define the 60-minute window"
 								}
 							]
 						}
