@@ -212,12 +212,5 @@ export TEST_SEAT_NUMBER=10
 2. Run the async pytest to ensure Redis seat locks allow only one success per seat (replace env values with real ones):
 
 ```bash
-docker exec -it bus_ticket_api bash -c "export TEST_USER_TOKEN='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTM2MjY4MDI1NCIsImV4cCI6MTc2MzY1OTY0M30.5SKyZUl4ROTt9DxTLIHaieiBpZ1_y491oMvqneYgve0' TEST_TRIP_ID=2273 TEST_SEAT_NUMBER=26 && pytest test/test_concurrent.py"
+docker exec -it bus_ticket_api bash -c "export TEST_USER_TOKEN='' TEST_TRIP_ID=2502 TEST_SEAT_NUMBER=20 && pytest test/test_concurrent.py"
 ```
-
-## Documentation
-
-- `QUICK_START_DOCKER.md` - Step-by-step Docker guide
-- `DOCKER_MIGRATIONS_GUIDE.md` - Complete migration guide
-- `MIGRATIONS_README.md` - Alembic usage guide
-
