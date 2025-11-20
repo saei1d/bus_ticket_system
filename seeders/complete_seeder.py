@@ -13,12 +13,13 @@ if project_root not in sys.path:
 from app.db.base import Base
 from app.db.session import engine, AsyncSessionLocal
 from app.core.security import get_password_hash
+from app.models import *
 from sqlalchemy import text
 
 cities = [
-    "Tehran", "Mashhad", "Isfahan", "Shiraz", "Tabriz",
+    "Kerman", "Mashhad", "Isfahan", "Shiraz", "Tabriz",
     "Karaj", "Ahvaz", "Qom", "Kermanshah", "Rasht",
-    "Yazd", "Kerman", "Arak", "Hamedan", "BandarAbbas"
+    "Yazd", "Tehran", "Arak", "Hamedan", "BandarAbbas"
 ]
 
 async def seed_everything():

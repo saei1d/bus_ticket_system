@@ -1,69 +1,77 @@
 # app/services/rate_limit.py
-from app.core.redis import redis_client as redis
-from fastapi import HTTPException
 from datetime import datetime
 
-async def check_daily_limit(user_id: int):
+from fastapi import HTTPException, status
+
+from app.core.redis import redis_client as redis
+
+
+async def check_daily_limit(user_id: int) -> None:
     """
-    Check if user can make a booking (hasn't reached daily limit of 20).
-    Only checks, doesn't increment. Increment should be done after successful booking.
+    Check if the user has reached the daily booking limit (20 bookings per day).
+    This function only checks — increment is performed separately after successful booking.
     """
     key = f"daily_limit:{user_id}:{datetime.now().date()}"
     current = await redis.get(key)
-    
-    if current is None:
-        count = 0
-    else:
-        count = int(current)
-    
-    # Check if limit reached - allow up to 20 bookings (count 0-19 = 20 total)
+
+    count = int(current) if current is not None else 0
+
     if count >= 20:
         raise HTTPException(
-            status_code=429,
-            detail="حداکثر ۲۰ رزرو در روز مجاز است"
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="You have reached the daily booking limit of 20 reservations."
         )
-    
-    return True
 
 
-async def increment_daily_limit(user_id: int):
+async def increment_daily_limit(user_id: int) -> None:
     """
-    Increment daily booking counter after successful booking.
-    Should only be called after booking is confirmed in database.
+    Increment the user's daily booking counter.
+    Must be called only after a booking has been successfully confirmed in the database.
+    Sets a 24-hour expiry on first use.
     """
     key = f"daily_limit:{user_id}:{datetime.now().date()}"
+
     current = await redis.get(key)
-    
+
     if current is None:
-        # First booking of the day - set with 24 hour expiry
-        await redis.setex(key, 86400, "1")
+        # First booking today — initialize counter with 24h TTL
+        await redis.setex(key, 86_400, "1")
     else:
-        # Increment existing counter
         await redis.incr(key)
 
 
-async def check_rate_limit(identifier: str, limit: int, window_seconds: int = 60):
+async def check_rate_limit(
+    identifier: str,
+    limit: int,
+    window_seconds: int = 60,
+    *,
+    resource: str = "request"
+) -> None:
     """
-    Generic rate limiter for IP or phone number.
+    Generic sliding-window rate limiter (e.g., for login attempts, SMS, or API calls).
+
     Args:
-        identifier: IP address or phone number
-        limit: Maximum number of requests
-        window_seconds: Time window in seconds (default: 60 for 1 minute)
+        identifier: Unique identifier (e.g., IP address, mobile number)
+        limit: Maximum allowed requests in the time window
+        window_seconds: Time window in seconds (default: 60)
+        resource: Human-readable name of the resource being limited (for error message)
+
+    Raises:
+        HTTPException 429 if limit exceeded
     """
-    key = f"rate_limit:{identifier}"
+    key = f"rate_limit:{identifier}:{resource}"
     current = await redis.get(key)
-    
-    if current is None:
-        await redis.setex(key, window_seconds, "0")
-        count = 0
-    else:
-        count = int(current)
-    
+
+    count = int(current) if current is not None else 0
+
     if count >= limit:
         raise HTTPException(
-            status_code=429,
-            detail=f"تعداد درخواست‌ها بیش از حد مجاز است. لطفاً {window_seconds} ثانیه صبر کنید."
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Too many {resource}s. Please try again in {window_seconds} seconds."
         )
-    
-    await redis.incr(key)
-    return True
+
+    # Increment counter and set expiry on first request
+    if current is None:
+        await redis.setex(key, window_seconds, "1")
+    else:
+        await redis.incr(key)

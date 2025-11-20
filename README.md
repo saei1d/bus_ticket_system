@@ -26,6 +26,7 @@ bus ticket reservation system built with FastAPI, PostgreSQL, and Redis. This sy
 ```bash
 git clone https://github.com/saei1d/bus_ticket_system.git
 cd bus_ticket_system
+docker-compose down -v
 docker-compose up -d --build
 ```
 
@@ -76,7 +77,7 @@ docker exec -it bus_ticket_postgres psql -U postgres -d bus_ticket_db -c "SELECT
 
 - **POST** `/v1/auth/register` - Register new user
   - Body: `{"mobile": "09123456789"}`
-  - If you want be admin role you should request like this :`{"mobile": "09123456789","role": "passenger"}`
+  - If you want be admin role you should request like this :`{"mobile": "09123456789","role": "admin"}`
   - Rate limit: 10 requests/minute per IP and phone
 
 - **POST** `/v1/auth/login` - Login and get JWT token

@@ -73,7 +73,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"mobile\": \"09123456789\"}"
+							"raw": "{\n    \"mobile\": \"09036082855\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/v1/auth/register",
@@ -110,7 +110,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"mobile\": \"09990000001\"}"
+							"raw": "{\n    \"mobile\": \"09036082855\" \n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/v1/auth/login",
